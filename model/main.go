@@ -95,19 +95,7 @@ func buildNgram(filePath string, maxGrams int) {
 
 				w := strings.Join(tokens[j:j+i], " ")
 
-				// w := ""
-
-				// for k := j; k < j+i; k++ {
-				// 	w += " "
-				// 	w += tokens[k]
-				// }
-
 				n := tokens[j+i]
-				// if ngrams[w] == nil {
-				// 	ngrams[w] = map[string]int{}
-				// }
-
-				// ngrams[w][n]++
 				_, _ = instertTx.Exec(w, n)
 			}
 		}
@@ -187,18 +175,6 @@ func buildLookup(filePath string) {
 
 func main() {
 
-	// sentences := []string{
-	// 	"I love to code in go",
-	// 	"I like to eat pizza every day",
-	// 	"I want to eat something fresh",
-	// 	"I love walking",
-	// 	"you are my best friend",
-	// 	"we should go hiking this weekend",
-	// 	"the weather is nice today",
-	// 	"let's grab some coffee",
-	// 	"reading books is fun",
-	// 	"traveling the world is my dream"}
-
-	//buildNgram("arabic_sentiment_reviews.csv", 5)
+	buildNgram("arabic_sentiment_reviews.csv", 5)
 	buildLookup("arabic_sentiment_reviews.csv")
 }

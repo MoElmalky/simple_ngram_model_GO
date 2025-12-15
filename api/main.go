@@ -99,15 +99,15 @@ func main() {
 		c.Set("ngram_db", db)
 		c.Next()
 	})
-	db, err = sql.Open("sqlite", "file:../model/lookup.db?mode=ro")
+	lookup_db, err := sql.Open("sqlite", "file:../model/lookup.db?mode=ro")
 	if err != nil {
 		panic(err)
 	}
-	db.Exec("PRAGMA journal_mode=WAL;")
-	db.Exec("PRAGMA synchronous=NORMAL;")
-	db.Exec("PRAGMA cache_size=100000;")
+	lookup_db.Exec("PRAGMA journal_mode=WAL;")
+	lookup_db.Exec("PRAGMA synchronous=NORMAL;")
+	lookup_db.Exec("PRAGMA cache_size=100000;")
 	router.Use(func(c *gin.Context) {
-		c.Set("lookup_db", db)
+		c.Set("lookup_db", lookup_db)
 		c.Next()
 	})
 	router.GET("/predNxt", predictNextWord)
