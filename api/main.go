@@ -2,7 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -12,7 +14,7 @@ import (
 func predictNextWord(c *gin.Context) {
 	input := c.Query("w")
 	input = strings.Trim(input, " ")
-	db := c.MustGet("db").(*sql.DB)
+	db := c.MustGet("ngram_db").(*sql.DB)
 	words := strings.Fields(input)
 	if len(words) >= 5 {
 		words = words[len(words)-4:]
@@ -54,6 +56,34 @@ func predictNextWord(c *gin.Context) {
 	}
 }
 
+func search(c *gin.Context) {
+	input := c.Query("w")
+	input = strings.Trim(input, " ")
+	db := c.MustGet("lookup_db").(*sql.DB)
+	rows, err := db.Query(`
+	SELECT row
+	FROM data_fts
+	WHERE data_fts MATCH ?
+	`, input)
+	if err != nil {
+		panic(err)
+	}
+
+	defer rows.Close()
+	texts := []string{}
+	for rows.Next() {
+		var id int
+		rows.Scan(&id)
+		fmt.Println("ID:", id)
+		texts = append(texts, "Text found in Doc"+strconv.Itoa(id))
+	}
+	if len(texts) != 0 {
+		c.IndentedJSON(http.StatusOK, texts)
+	} else {
+		c.IndentedJSON(http.StatusNotFound, "No Match")
+	}
+}
+
 func main() {
 	db, err := sql.Open("sqlite", "file:../model/ngrams.db?mode=ro")
 	if err != nil {
@@ -66,10 +96,22 @@ func main() {
 
 	router := gin.Default()
 	router.Use(func(c *gin.Context) {
-		c.Set("db", db)
+		c.Set("ngram_db", db)
+		c.Next()
+	})
+	db, err = sql.Open("sqlite", "file:../model/lookup.db?mode=ro")
+	if err != nil {
+		panic(err)
+	}
+	db.Exec("PRAGMA journal_mode=WAL;")
+	db.Exec("PRAGMA synchronous=NORMAL;")
+	db.Exec("PRAGMA cache_size=100000;")
+	router.Use(func(c *gin.Context) {
+		c.Set("lookup_db", db)
 		c.Next()
 	})
 	router.GET("/predNxt", predictNextWord)
+	router.GET("/search", search)
 	router.Run("localhost:8800")
 
 }

@@ -20,6 +20,15 @@ func tokenize(sentence string) []string {
 	return strings.Fields(text)
 }
 
+func normalize(s string) string {
+	text := strings.ToLower(s)
+	re := regexp.MustCompile(`[^\p{L}\p{M}\p{N}\s]+`)
+	text = re.ReplaceAllString(text, " ")
+	re = regexp.MustCompile(`[\p{M}]+`)
+	text = re.ReplaceAllString(text, "")
+	return strings.TrimSpace(text)
+}
+
 func buildNgram(filePath string, maxGrams int) {
 
 	if maxGrams < 2 {
@@ -121,6 +130,61 @@ func buildNgram(filePath string, maxGrams int) {
 	db.Exec("delete from ngrams where count < 5;")
 }
 
+func buildLookup(filePath string) {
+	db, err := sql.Open("sqlite", "lookup.db")
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec(`
+	CREATE VIRTUAL TABLE IF NOT EXISTS data_fts
+	USING fts5(text, row UNINDEXED);
+	`)
+	if err != nil {
+		panic(err)
+	}
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+
+	insertStmt, err := db.Prepare(`INSERT INTO data_fts(text, row) VALUES (?,?)`)
+	if err != nil {
+		panic(err)
+	}
+	defer insertStmt.Close()
+
+	counter := 0
+	for {
+		record, err := reader.Read()
+		if err != nil {
+			break
+		}
+
+		text := strings.TrimSpace(record[1])
+		text = normalize(text)
+
+		_, err = insertStmt.Exec(text, counter+1)
+		if err != nil {
+			panic(err)
+		}
+		counter++
+		if counter%10 == 0 {
+			fmt.Println("Rows processed:", counter)
+			if counter%500 == 0 {
+				break
+			}
+		}
+	}
+
+	fmt.Println("Lookup table built successfully.")
+}
+
 func main() {
 
 	// sentences := []string{
@@ -135,5 +199,6 @@ func main() {
 	// 	"reading books is fun",
 	// 	"traveling the world is my dream"}
 
-	buildNgram("arabic_sentiment_reviews.csv", 5)
+	//buildNgram("arabic_sentiment_reviews.csv", 5)
+	buildLookup("arabic_sentiment_reviews.csv")
 }
